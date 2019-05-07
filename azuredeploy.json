@@ -5,14 +5,14 @@
       "clusterName": {
         "type": "string",
         "metadata": {
-          "description": "The name of the HDInsight cluster to be created. The cluster name must be globally unique."
+          "description": "The name of the Kafka cluster to create. This must be a unique name."
         }
       },
       "clusterLoginUserName": {
         "type": "string",
-        "defaultValue": "admin",
+        "defaultValue": "kafka",
         "metadata": {
-          "description": "These credentials can be used to submit jobs to the cluster and to log into cluster dashboards."
+          "description": "Cluster Login Name"
         }
       },
       "clusterLoginPassword": {
@@ -23,7 +23,7 @@
       },
       "sshUserName": {
         "type": "string",
-        "defaultValue": "sshuser",
+        "defaultValue": "kafka",
         "metadata": {
           "description": "These credentials can be used to remotely access the cluster."
         }
@@ -37,30 +37,23 @@
       "_artifactsLocation": {
         "type": "string",
         "metadata": {
-          "description": "The base URI where artifacts required by this template are located. When the template is deployed using the accompanying scripts, a private location in the subscription will be used and this value will be automatically generated."
+          "description": "The base URI where artifacts required by this template are located."
         },
-        "defaultValue": "https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/101-hdinsight-linux-with-edge-node"
-      },
-      "_artifactsLocationSasToken": {
-        "type": "securestring",
-        "metadata": {
-          "description": "The sasToken required to access _artifactsLocation.  When the template is deployed using the accompanying scripts, a sasToken will be automatically generated."
-        },
-        "defaultValue": ""
+        "defaultValue": "https://raw.githubusercontent.com/vcivelek/hdinsight-kafka-with-schema-registry/master"
       },
       "installScriptActionFolder": {
         "type": "string",
         "metadata": {
-          "description": "A script action you can run on the empty node to install or configure additiona software."
+          "description": "A script action you can run on the empty node to install or configure additional software."
         },
         "defaultValue": "scripts"
       },
       "installScriptAction": {
         "type": "string",
         "metadata": {
-          "description": "A script action you can run on the empty node to install or configure additiona software."
+          "description": "A script action you can run on the empty node to install or configure additional software."
         },
-        "defaultValue": "EmptyNodeSetup.sh"
+        "defaultValue": "NodeSetup.sh"
       },
       "location": {
         "type": "string",
@@ -73,14 +66,14 @@
     "variables": {
       "clusterStorageAccountName": "[concat(parameters('clusterName'),'store')]",
       "storageAccountType": "Standard_LRS",
-      "applicationName": "new-edgenode"
+      "applicationName": "schema-registry"
     },
     "resources": [
       {
         "type": "Microsoft.Storage/storageAccounts",
         "name": "[variables('clusterStorageAccountName')]",
-        "apiVersion": "2016-01-01",
         "location": "[parameters('location')]",
+        "apiVersion": "2017-10-01",
         "sku": {
           "name": "[variables('storageAccountType')]"
         },
@@ -100,7 +93,7 @@
           "clusterVersion": "3.6",
           "osType": "Linux",
           "clusterDefinition": {
-            "kind": "hadoop",
+            "kind": "KAFKA",
             "configurations": {
               "gateway": {
                 "restAuthCredential.isEnabled": true,
@@ -115,7 +108,7 @@
                 "name": "[replace(replace(reference(resourceId('Microsoft.Storage/storageAccounts', variables('clusterStorageAccountName')), '2016-01-01').primaryEndpoints.blob,'https://',''),'/','')]",
                 "isDefault": true,
                 "container": "[parameters('clusterName')]",
-                "key": "[listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('clusterStorageAccountName')), '2016-01-01').keys[0].value]"
+                "key": "[listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('clusterStorageAccountName')), '2017-10-01').keys[0].value]"
               }
             ]
           },
@@ -136,9 +129,27 @@
               },
               {
                 "name": "workernode",
-                "targetInstanceCount": 2,
+                "targetInstanceCount": 4,
                 "hardwareProfile": {
                   "vmSize": "Standard_D3_v2"
+                },
+                "dataDisksGroups": [
+                  {
+                    "disksPerNode": 2
+                  }
+                ],
+                "osProfile": {
+                  "linuxOperatingSystemProfile": {
+                    "username": "[parameters('sshUserName')]",
+                    "password": "[parameters('sshPassword')]"
+                  }
+                }
+              },
+              {
+                "name": "zookeepernode",
+                "targetInstanceCount": 3,
+                "hardwareProfile": {
+                  "vmSize": "Standard_A3"
                 },
                 "osProfile": {
                   "linuxOperatingSystemProfile": {
@@ -159,7 +170,6 @@
           "[concat('Microsoft.HDInsight/clusters/',parameters('clusterName'))]"
         ],
         "properties": {
-          "marketPlaceIdentifier": "EmptyNode",
           "computeProfile": {
             "roles": [
               {
@@ -174,7 +184,7 @@
           "installScriptActions": [
             {
               "name": "[concat('schemaregistry','-' ,uniquestring(variables('applicationName')))]",
-              "uri": "[concat(parameters('_artifactsLocation'), '/', parameters('installScriptActionFolder'), '/', parameters('installScriptAction'), parameters('_artifactsLocationSasToken'))]",
+              "uri": "[concat(parameters('_artifactsLocation'), '/', parameters('installScriptActionFolder'), '/', parameters('installScriptAction'))]",
               "roles": [
                 "edgenode"
               ]
@@ -182,22 +192,15 @@
           ],
           "uninstallScriptActions": [],
           "httpsEndpoints": [],
+          "sshEndpoints": [
+            {
+              "location": "[concat(variables('applicationName'),'.',parameters('clusterName'),'-ssh.azurehdinsight.net')]",
+              "destinationPort": 22,
+              "publicPort": 22
+            }
+          ],
           "applicationType": "CustomApplication"
         }
       }
-    ],
-    "outputs": {
-      "storage": {
-        "type": "object",
-        "value": "[reference(resourceId('Microsoft.Storage/storageAccounts', variables('clusterStorageAccountName')))]"
-      },
-      "cluster": {
-        "type": "object",
-        "value": "[reference(resourceId('Microsoft.HDInsight/clusters',parameters('clusterName')))]"
-      },
-      "application": {
-        "type": "object",
-        "value": "[reference(resourceId('Microsoft.HDInsight/clusters/applications/',parameters('clusterName'), variables('applicationName')))]"
-      }
-    }
-  }
+    ]
+}
