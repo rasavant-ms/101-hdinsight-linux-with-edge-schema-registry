@@ -1,0 +1,69 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+      "clusterName": {
+        "type": "string",
+        "metadata": {
+          "description": "The name of the Kafka cluster to create. This must be a unique name."
+        }
+      },
+      "_artifactsLocation": {
+        "type": "string",
+        "metadata": {
+          "description": "The base URI where artifacts required by this template are located."
+        },
+        "defaultValue": "https://raw.githubusercontent.com/rasavant-ms/101-hdinsight-linux-with-edge-schema-registry/master"
+      },
+      "installScriptActionFolder": {
+        "type": "string",
+        "metadata": {
+          "description": "A script action you can run on the empty node to install or configure additional software."
+        },
+        "defaultValue": "scripts"
+      },
+      "installScriptAction": {
+        "type": "string",
+        "metadata": {
+          "description": "A script action you can run on the empty node to install or configure additional software."
+        },
+        "defaultValue": "NodeSetup.sh"
+      }
+    },
+    "variables": {
+      "applicationName": "schema-registry"
+    },
+    "resources": [
+        {
+            "name": "[concat(parameters('clusterName'),'/', variables('applicationName'))]",
+            "type": "Microsoft.HDInsight/clusters/applications",
+            "apiVersion": "2015-03-01-preview",
+            "properties": {
+                "computeProfile": {
+                    "roles": [{
+                        "name": "edgenode",
+                        "targetInstanceCount": 1,
+                        "hardwareProfile": {
+                            "vmSize": "Standard_D3_V2"
+                        }
+                    }]
+                },
+                "installScriptActions": [{
+                    "name": "[concat('schemaregistry','-' ,uniquestring(variables('applicationName')))]",
+                    "uri": "[concat(parameters('_artifactsLocation'), '/', parameters('installScriptActionFolder'), '/', parameters('installScriptAction'))]",
+                    "roles": ["edgenode"]
+                }],
+                "uninstallScriptActions": [],
+                "httpsEndpoints": [],
+                "sshEndpoints": [
+                    {
+                      "location": "[concat(variables('applicationName'),'.',parameters('clusterName'),'-ssh.azurehdinsight.net')]",
+                      "destinationPort": 22,
+                      "publicPort": 22
+                    }
+                  ],
+                "applicationType": "CustomApplication"
+            }
+        }
+    ]
+}
