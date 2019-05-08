@@ -39,7 +39,7 @@
         "metadata": {
           "description": "The base URI where artifacts required by this template are located."
         },
-        "defaultValue": "https://raw.githubusercontent.com/vcivelek/hdinsight-kafka-with-schema-registry/master"
+        "defaultValue": "https://raw.githubusercontent.com/rasavant-ms/101-hdinsight-linux-with-edge-schema-registry/master"
       },
       "installScriptActionFolder": {
         "type": "string",
