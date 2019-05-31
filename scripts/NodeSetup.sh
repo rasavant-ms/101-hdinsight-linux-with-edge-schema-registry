@@ -29,7 +29,7 @@ WantedBy=multi-user.target
 
 echo "
 listeners=http://0.0.0.0:8081
-kafkastore.connection.url=zk0-ohkl-h:2181,zk1-ohkl-h:2181,zk2-ohkl-h:2181,zk3-ohkl-h:2181
+kafkastore.connection.url=zk0-ohkl-h:2181,zk1-ohkl-h:2181,zk2-ohkl-h:2181
 kafkastore.topic=_schemas
 debug=false
 " > /etc/schema-registry/schema-registry.properties
