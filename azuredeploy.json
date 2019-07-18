@@ -41,6 +41,13 @@
         },
         "defaultValue": "https://raw.githubusercontent.com/rasavant-ms/101-hdinsight-linux-with-edge-schema-registry/master"
       },
+      "_artifactsLocationSasToken": {
+        "type": "securestring",
+        "metadata": {
+            "description": "The sasToken required to access _artifactsLocation.  When the template is deployed using the accompanying scripts, a sasToken will be automatically generated. Use the defaultValue if the staging location is not secured."
+        },
+        "defaultValue": ""
+      },
       "installScriptActionFolder": {
         "type": "string",
         "metadata": {
@@ -64,16 +71,16 @@
       }
     },
     "variables": {
-      "clusterStorageAccountName": "[concat(parameters('clusterName'),'store')]",
+      "clStgAcnt": "[concat(parameters('clusterName'),'store')]",
       "storageAccountType": "Standard_LRS",
       "applicationName": "schema-registry"
     },
     "resources": [
       {
         "type": "Microsoft.Storage/storageAccounts",
-        "name": "[variables('clusterStorageAccountName')]",
+        "name": "[variables('clStgAcnt')]",
         "location": "[parameters('location')]",
-        "apiVersion": "2017-10-01",
+        "apiVersion": "2019-04-01",
         "sku": {
           "name": "[variables('storageAccountType')]"
         },
@@ -84,11 +91,10 @@
         "name": "[parameters('clusterName')]",
         "type": "Microsoft.HDInsight/clusters",
         "location": "[parameters('location')]",
-        "apiVersion": "2015-03-01-preview",
+        "apiVersion": "2018-06-01-preview",
         "dependsOn": [
-          "[concat('Microsoft.Storage/storageAccounts/',variables('clusterStorageAccountName'))]"
+          "[concat('Microsoft.Storage/storageAccounts/',variables('clStgAcnt'))]"
         ],
-        "tags": {},
         "properties": {
           "clusterVersion": "3.6",
           "osType": "Linux",
@@ -105,10 +111,10 @@
           "storageProfile": {
             "storageaccounts": [
               {
-                "name": "[replace(replace(reference(resourceId('Microsoft.Storage/storageAccounts', variables('clusterStorageAccountName')), '2016-01-01').primaryEndpoints.blob,'https://',''),'/','')]",
+                "name": "[replace(replace(reference(resourceId('Microsoft.Storage/storageAccounts', variables('clStgAcnt')), '2016-01-01').primaryEndpoints.blob,'https://',''),'/','')]",
                 "isDefault": true,
                 "container": "[parameters('clusterName')]",
-                "key": "[listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('clusterStorageAccountName')), '2017-10-01').keys[0].value]"
+                "key": "[listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('clStgAcnt')), '2017-10-01').keys[0].value]"
               }
             ]
           },
@@ -165,7 +171,7 @@
       {
         "name": "[concat(parameters('clusterName'),'/', variables('applicationName'))]",
         "type": "Microsoft.HDInsight/clusters/applications",
-        "apiVersion": "2015-03-01-preview",
+        "apiVersion": "2018-06-01-preview",
         "dependsOn": [
           "[concat('Microsoft.HDInsight/clusters/',parameters('clusterName'))]"
         ],
@@ -184,14 +190,12 @@
           "installScriptActions": [
             {
               "name": "[concat('schemaregistry','-' ,uniquestring(variables('applicationName')))]",
-              "uri": "[concat(parameters('_artifactsLocation'), '/', parameters('installScriptActionFolder'), '/', parameters('installScriptAction'))]",
+              "uri": "[concat(parameters('_artifactsLocation'), parameters('installScriptActionFolder'), '/', parameters('installScriptAction'), parameters('_artifactsLocationSasToken'))]",
               "roles": [
                 "edgenode"
               ]
             }
           ],
-          "uninstallScriptActions": [],
-          "httpsEndpoints": [],
           "sshEndpoints": [
             {
               "location": "[concat(variables('applicationName'),'.',parameters('clusterName'),'-ssh.azurehdinsight.net')]",
